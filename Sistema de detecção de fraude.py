@@ -7,6 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report,confusion_matrix, accuracy_score
 from xgboost import XGBClassifier
+from flask import Flask, request, jsonify
 
 np.random.seed(42)
 num_samples = 10000
@@ -69,3 +70,49 @@ modelo_xgb = XGBClassifier(n_estimators=100,random_state=42, eval_metric='loglos
 modelo_xgb.fit(X_train, y_train)
 probabilidade = modelo_xgb.predict_proba(nova_transacao)[0][1]
 print(f"\nProbabilidade de ser fraude: {probabilidade:.2%}")
+
+app = Flask(__name__)
+
+def home():
+    return "API de Detecção de Fraude - Flask Rodando!"
+
+@app.route('/prever', methods=['POST'])
+def prever():
+    try: 
+        dados= request.json
+        
+        valor_transacao = float(dados['valor_transacao'])
+        tempo_transacao = int(dados['tempo_transacao'])
+        historico_fraude= int(dados['historico_fraude'])
+        
+        nova_transacao = pd.DataFrame([{
+            'valor_transacao': valor_transacao,
+            'tempo_transacao': tempo_transacao,
+            'historico_fraude': historico_fraude,
+            'origem_pais_US': 0, 'origem_pais_FR': 0,'origem_pais_DE':0, 'origem_pais_JP':0,
+            'destino_pais_US':1, 'destino_pais_FR':0, 'destino_pais_DE':0, 'destino_pais_JP':0,
+            'tipo_pagamento_Cartão de Crédito':0, 'tipo_pagamento_Pix':1, 'tipo_pagamento_Boleto':0, 'tipo_pagamento_TED':0        
+        }])
+        for coluna in X.columns:
+            if coluna not in nova_transacao.columns:
+                nova_transacao[coluna] = 0
+        
+        nova_transacao = nova_transacao[X.columns]
+        nova_transacao[['valor_transacao', 'tempo_transacao']] = scaler.transform(nova_transacao[['valor_transacao', 'tempo_transacao']])
+        
+        previsao = modelo.predict(nova_transacao)[0]
+        probabilidade = modelo_xgb.predict_proba(nova_transacao)[0][1]
+        
+        resultado = {
+            'fraude': int (previsao),
+            'probabilidade_fraude': round(probabilidade * 100,2)
+        }
+        
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({'erro':str(e)})
+    
+if __name__== '__main__':
+    app.run(debug=True)    
+            
+        
